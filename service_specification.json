@@ -3,7 +3,7 @@
     "icon": "https://www.mercator-ocean.eu/wp-content/uploads/2017/06/favicon-512x512-300x300.png",
     "home": "https://github.com/jjrom/sargassum-viewer",
     "keywords": ["Sargassum", "Viewer"],
-    "appVersion": "1.0.1",
+    "appVersion": "1.0.3",
     "servicePort": 80,
     "customHostname": true
 }

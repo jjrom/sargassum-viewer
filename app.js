@@ -145,11 +145,30 @@ radiusSlider.addEventListener('change', (event) => {
     map.setPaintProperty("sargassum-heatmap-layer", "heatmap-radius", heatmap.radius);
 });
 
-/**  ========================== [UI] Heatmap radius Slider ================================ */
+/**  ========================== [UI] Location    ================================ */
 const locationSelect = document.getElementById("locationSelect");
 
 locationSelect.addEventListener("change", function () {
     selectEEZ(this.value);
+});
+
+/**  ========================== [UI] Full width chart  ================================ */
+const toggleLeftZoneBtn = document.getElementById("toggle-left-zone");
+const leftZone = document.getElementById("left-zone");
+const rightZone = document.getElementById("right-zone");
+let isLeftZoneVisible = true; // Track state
+
+toggleLeftZoneBtn.addEventListener("click", function () {
+    if (isLeftZoneVisible) {
+        leftZone.classList.add("hidden-left-zone"); // Hide left zone
+        rightZone.classList.add("full-width"); // Expand right zone
+        toggleLeftZoneBtn.textContent = "Show statistics";
+    } else {
+        leftZone.classList.remove("hidden-left-zone"); // Show left zone
+        rightZone.classList.remove("full-width"); // Restore right zone size
+        toggleLeftZoneBtn.textContent = "Hide statistics";
+    }
+    isLeftZoneVisible = !isLeftZoneVisible; // Toggle state
 });
 
 /** ========================== [UI] Map ================================ **/
@@ -468,6 +487,9 @@ const popup = new maplibregl.Popup({
 
     });
 
+
+    map.addControl(new maplibregl.FullscreenControl());
+
     // Initial layer loading
     updateDate(parseInt(dateSlider.value, 10), true);
 
@@ -732,6 +754,8 @@ async function fetchChartData(eezName) {
         }
 
     } catch (error) {
+        loadingSpinner.style.display = 'none';
+        chartContainer.style.display = 'block';
         console.error("Error fetching chart data:", error);
     }
 }
@@ -746,32 +770,34 @@ function selectEEZ(geoname) {
 
     map.getSource('eez-source').getData().then(
         (data) => {
-            data.features.forEach(feature => {
+            if (data && data.features) {
+                data.features.forEach(feature => {
 
-                if (feature.properties.GEONAME === geoname) {
-
-                    currentEEZ = feature;
-                    eezArea.innerHTML = "Area:&nbsp;" + feature.properties.AREA_KM2 + " km2";
-                    const bbox = getBoundingBox(feature.geometry.coordinates);
-                    map.fitBounds(bbox, {
-                        padding: 20
-                    });
-                    
-                    clickedStateId = feature.id;
-                    map.setFeatureState(
-                        {source: 'eez-source', id: clickedStateId},
-                        {click: true}
-                    );
-
-                    return fetchChartData(geoname);
-                }
-                else {
-                    map.setFeatureState(
-                        {source: 'eez-source', id: feature.id},
-                        {click: false}
-                    );
-                }
-            });
+                    if (feature.properties.GEONAME === geoname) {
+    
+                        currentEEZ = feature;
+                        eezArea.innerHTML = "Area:&nbsp;" + feature.properties.AREA_KM2 + " km2";
+                        const bbox = getBoundingBox(feature.geometry.coordinates);
+                        map.fitBounds(bbox, {
+                            padding: 20
+                        });
+                        
+                        clickedStateId = feature.id;
+                        map.setFeatureState(
+                            {source: 'eez-source', id: clickedStateId},
+                            {click: true}
+                        );
+    
+                        return fetchChartData(geoname);
+                    }
+                    else {
+                        map.setFeatureState(
+                            {source: 'eez-source', id: feature.id},
+                            {click: false}
+                        );
+                    }
+                });
+            }
         }
     )
 }
@@ -874,15 +900,26 @@ function getVisualMeasure(m2PerKm2, surfaceInKm2) {
 function getBoundingBox(coordinates) {
     let minLng = Infinity, minLat = Infinity;
     let maxLng = -Infinity, maxLat = -Infinity;
-
+    let lng, lat;
     coordinates[0].forEach(coord => {
-        const [lng, lat] = coord;
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
+        if ( Array.isArray(coord[0]) ) {
+            coord.forEach(coord => {
+                [lng, lat] = coord;
+                if (lng < minLng) minLng = lng;
+                if (lng > maxLng) maxLng = lng;
+                if (lat < minLat) minLat = lat;
+                if (lat > maxLat) maxLat = lat;
+            });
+        }
+        else {
+            [lng, lat] = coord;
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        }
     });
-
+    
     return [[minLng, minLat], [maxLng, maxLat]];
 }
 

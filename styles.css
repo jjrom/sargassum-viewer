@@ -72,7 +72,7 @@ h1 {
 
 /* Main Content - Below Fixed Header */
 .main-content {
-    margin-top: 50px; /* Push below fixed header */
+    margin-top: 70px; /* Push below fixed header */
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -114,6 +114,16 @@ h1 {
 .left-zone {
     width: 40vw;
     padding: 20px;
+}
+
+/* Hideable Left Zone */
+.hidden-left-zone {
+    display: none;
+}
+
+/* When left-zone is hidden, make right-zone full width */
+.full-width {
+    flex: 1 1 100%; /* Takes full width */
 }
 
 .card {
@@ -187,7 +197,7 @@ select {
 .date-container {
     position: absolute;
     top: 10px;
-    right: 10px;
+    left: 10px;
     padding: 10px;
     z-index: 10;
     display: flex;
