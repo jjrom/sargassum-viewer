@@ -11,7 +11,7 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
 const EEZ_WMS_URL = 'https://geo.vliz.be/geoserver/MarineRegions/wms';
 
 //const API_FORECAST_ENDPOINT = 'http://localhost:4443/forecast/'; // Base URL for GeoJSON files
-const API_FORECAST_ENDPOINT = 'https://sargassum-backend.lab.dive.edito.eu/forecast';
+const API_FORECAST_ENDPOINT = 'https://sargassum-backend.lab.dive.edito.eu/forecast/';
 
 // Play animation configuration
 const PICK_DELAY = 1000; // Limit to 1 call per second
