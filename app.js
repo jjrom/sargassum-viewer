@@ -10,8 +10,8 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
 
 const EEZ_WMS_URL = 'https://geo.vliz.be/geoserver/MarineRegions/wms';
 
-//const API_FORECAST_ENDPOINT = 'http://localhost:4443/forecast/'; // Base URL for GeoJSON files
-const API_FORECAST_ENDPOINT = 'https://sargassum-backend.lab.dive.edito.eu/forecast/';
+const API_FORECAST_ENDPOINT = 'http://localhost:4443/forecast/'; // Base URL for GeoJSON files
+//const API_FORECAST_ENDPOINT = 'https://sargassum-backend.lab.dive.edito.eu/forecast/';
 
 // Play animation configuration
 const PICK_DELAY = 1000; // Limit to 1 call per second
@@ -135,24 +135,28 @@ previousForecastCheckBox.addEventListener("change", function () {
     }
 });
 
-/** ========================== [UI] Heatmap radius Slider ================================ **/
-const radiusSlider = document.getElementById('radius-slider');
-const radiusValue = document.getElementById('radius-value');
+/** ========================== [UI] Fullscreen ================================= */
+/*document.addEventListener("DOMContentLoaded", function () {
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
 
-// Only update heatmap when user stops moving the slider
-radiusSlider.addEventListener('change', (event) => {
-    heatmap.radius = parseInt(event.target.value);
-    map.setPaintProperty("sargassum-heatmap-layer", "heatmap-radius", heatmap.radius);
-});
-
-/**  ========================== [UI] Location    ================================ */
+    fullscreenBtn.addEventListener("click", function () {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            fullscreenBtn.textContent = "Exit Fullscreen";
+        } else {
+            document.exitFullscreen();
+            fullscreenBtn.textContent = "Fullscreen";
+        }
+    });
+});*/
+/** ========================== [UI] Location    ================================ */
 const locationSelect = document.getElementById("locationSelect");
 
 locationSelect.addEventListener("change", function () {
     selectEEZ(this.value);
 });
 
-/**  ========================== [UI] Full width chart  ================================ */
+/** ========================== [UI] Full width chart  ================================ */
 const toggleLeftZoneBtn = document.getElementById("toggle-left-zone");
 const leftZone = document.getElementById("left-zone");
 const rightZone = document.getElementById("right-zone");
@@ -173,14 +177,11 @@ toggleLeftZoneBtn.addEventListener("click", function () {
 
 /** ========================== [UI] Map ================================ **/
 // Sargassum heatmap parameters
-let heatmap = {
-    radius: 10,
+let sargassum = {
     data: {
         type: 'FeatureCollection',
         features: []
-    },
-    minDensity: 0,  // Define minimum density
-    maxDensity: 0.2  // Define maximum density
+    }
 };
 
 let currentFeatureCoordinates = undefined;
@@ -241,29 +242,6 @@ const popup = new maplibregl.Popup({
             {source: 'eez-source', id: hoveredStateId},
             {hover: true}
         );
-        /*
-        const featureCoordinates = e.features[0].geometry.coordinates.toString();
-        
-        if (currentFeatureCoordinates !== featureCoordinates) {
-            currentFeatureCoordinates = featureCoordinates;
-
-            // Change the cursor style as a UI indicator.
-            map.getCanvas().style.cursor = 'pointer';
-
-            const coordinates = e.features[0].geometry.coordinates.slice();
-
-            // Ensure that if the map is zoomed out such that multiple
-            // copies of the feature are visible, the popup appears
-            // over the copy being pointed to.
-            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-                coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-            }
-
-            // Populate the popup and set its coordinates
-            // based on the feature found.
-            popup.setLngLat(coordinates).setHTML(`<h3><b>${e.features[0].properties.GEONAME}</h3>`).addTo(map);
-        }*/
-
     });
 
     // Hide tooltip when mouse leaves the map
@@ -294,6 +272,7 @@ const popup = new maplibregl.Popup({
                     for (var i = 0, ii = data.features.length; i < ii; i++) {
                         opt = document.createElement("option");
                         opt.value = data.features[i].properties.GEONAME;
+                        opt.classList.add("fixed");
                         opt.textContent = data.features[i].properties.GEONAME;
                         locationSelect.appendChild(opt);
                     } 
@@ -311,26 +290,30 @@ const popup = new maplibregl.Popup({
     map.on('load', () => {
 
         /*
-         * [WMS] Exclusive Economical Zone
-         *
-        map.addSource('eez-wms-source', {
-            'type': 'raster',
-            'tiles': [
-                EEZ_WMS_URL + '?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&width=256&height=256&layers=eez'
-            ],
-            'tileSize': 256
+         * [GeoJSON] Sargassum as heatmap
+         */
+        map.addSource('sargassum', {
+            type: 'geojson',
+            data: createGridFromPoints(sargassum.data)
         });
-        map.addLayer(
-            {
-                'id': 'eez-wms-layer',
-                'type': 'raster',
-                'source': 'eez-wms-source',
-                'paint': {
-                    'raster-opacity': 0.3
-                }
+        
+        map.addLayer({
+            type: 'fill',
+            id: 'sargassum-layer',
+            source: 'sargassum',
+            paint: {
+                'fill-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'value'],
+                    0, 'transparent',  // Yellow for value = 0
+                    0.1, 'rgba(255,255,0,1)',  // Yellow for value = 0
+                    0.7, 'rgba(255,0,0,1)'   // Red for value = 1
+                ],
+                'fill-opacity': 1,
+                'fill-outline-color': 'transparent'
             }
-        );
-        */
+        });
 
         map.addSource('eez-source', {
             type: 'geojson',
@@ -341,149 +324,22 @@ const popup = new maplibregl.Popup({
             type: 'fill',
             source: 'eez-source',
             paint: {
-                /*'fill-outline-color':[
+                'fill-outline-color':[
                     'case',
                     ['boolean', ['feature-state', 'click'], false],
-                    'red',
-                    'olive'
-                ],*/
+                    'black',
+                    'black'
+                ],
                 'fill-color': [
                     'case',
                     ['boolean', ['feature-state', 'click'], false],
-                    '#2ECC40',
-                    'olive'
-                ],
-                'fill-opacity': [
-                    'case',
+                    'rgba(0,0,0,0.1)',
                     ['boolean', ['feature-state', 'hover'], false],
-                    /*1,
-                    ['boolean', ['feature-state', 'click'], false],*/
-                    1,
-                    0.4
+                    'rgba(0,0,0,0.1)',
+                    'rgba(0,0,0,0)'
                 ]
             }
         });
-
-        /*
-         * [GeoJSON] Sargassum as heatmap
-         */
-        map.addSource('sargassum-heatmap', {
-            type: 'geojson',
-            data: heatmap.data
-        });
-        map.addLayer({
-            type: 'heatmap',
-            id: 'sargassum-heatmap-layer',
-            source: 'sargassum-heatmap',
-            paint: {
-                "heatmap-weight": ["get", "value"], // Read weight from 'density' property
-                "heatmap-intensity": 1,
-                "heatmap-radius": parseInt(radiusSlider.value),
-                "heatmap-opacity": 0.7,
-                "heatmap-color": [
-                    "interpolate",
-                    ["linear"],
-                    ["heatmap-density"], // Absolute values instead of heatmap-density
-                    heatmap.minDensity, "rgb(0,0,0,0)",  // No density (transparent)
-                    heatmap.maxDensity * 0.3, "#FFDC00",
-                    heatmap.maxDensity * 0.6, "#FF851B",
-                    heatmap.maxDensity * 0.8, "#FF4136",
-                    heatmap.maxDensity, "#85144b"
-                ]
-            }
-        });
-
-        /*
-         * [GeoJSON] EEZ centroid
-         *
-        map.addSource('eez-points-source', {
-            type: 'geojson',
-            data: 'data/eez_points_reduced.json'
-        });
-        map.addLayer({
-            id: 'eez-points-layer',
-            type: 'circle',
-            source: 'eez-points-source',
-            paint: {
-                'circle-radius': 8,
-                'circle-color': '#0074D9',
-                'circle-stroke-color': '#000000',
-                'circle-stroke-width': 1,
-                'circle-opacity': 1
-            }
-        });
-        */
-
-        /*
-         * [GeoJSON] North Atlantic mask
-         *
-        map.addSource('mask-source', {
-            type: 'geojson',
-            data: {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "coordinates": [
-                        [
-                            [
-                                -180,
-                                -90
-                            ],
-                            [
-                                -180,
-                                90
-                            ],
-                            [
-                                180,
-                                90
-                            ],
-                            [
-                                180,
-                                -90
-                            ],
-                            [
-                                -180,
-                                -90
-                            ]
-                        ],
-                        [
-                            [
-                                -102.06397326164948,
-                                52.678758487911125
-                            ],
-                            [
-                                -102.06397326164948,
-                                -15.74905933335009
-                            ],
-                            [
-                                13.632342028289912,
-                                -15.74905933335009
-                            ],
-                            [
-                                13.632342028289912,
-                                52.678758487911125
-                            ],
-                            [
-                                -102.06397326164948,
-                                52.678758487911125
-                            ]
-                        ]
-                    ],
-                    "type": "Polygon"
-                }
-            }
-        });
-        map.addLayer({
-            id: 'mask-layer',
-            type: 'fill',
-            source: 'mask-source',
-            layout: {},
-            paint: {
-                'fill-color': '#eeeeee',
-                'fill-opacity': 0.8
-            }
-        });
-        */
 
     });
 
@@ -652,16 +508,16 @@ async function updateLayers(url) {
         isFetching = true; // Mark request in progress
         fetchingSpinner.style.display = 'block';
         const response = await fetch(url);
-        heatmap.data = await response.json();
-        if (!heatmap.data.features) {
-            heatmap.data = { type: 'FeatureCollection', features: [] };
+        sargassum.data = await response.json();
+        if (!sargassum.data.features) {
+            sargassum.data = { type: 'FeatureCollection', features: [] };
         }
-        for (const feature of heatmap.data.features) {
+        for (const feature of sargassum.data.features) {
             feature.properties.value = logNormalizeValue(feature.properties.value);
         }
         isFetching = false; // Request finished
         fetchingSpinner.style.display = 'none';
-        map.getSource('sargassum-heatmap').setData(heatmap.data);
+        map.getSource('sargassum').setData(createGridFromPoints(sargassum.data));
     } catch (error) {
         console.error('Error loading GeoJSON:', error);
         isFetching = false;
@@ -779,7 +635,7 @@ function selectEEZ(geoname) {
                         eezArea.innerHTML = "Area:&nbsp;" + feature.properties.AREA_KM2 + " km2";
                         const bbox = getBoundingBox(feature.geometry.coordinates);
                         map.fitBounds(bbox, {
-                            padding: 20
+                            padding: 200
                         });
                         
                         clickedStateId = feature.id;
@@ -880,7 +736,6 @@ function resetStatistics() {
 }
 
 function toHumanDate(date) {
-//    return capitalizeFirstLetter(date.toLocaleDateString(navigatorLanguage, { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
     return capitalizeFirstLetter(date.toLocaleDateString('en', { year: "numeric", month: "long", day: "2-digit" }));
 }
 
@@ -1007,4 +862,42 @@ function setDatasetData(datasetName, data) {
         }
     }
 
+}
+
+/**
+ * Convert point GeoJSON to quarter-degree grid polygons
+ */
+function createGridFromPoints(pointGeoJson) {
+    let gridFeatures = pointGeoJson.features.map(feature => {
+        let [lon, lat] = feature.geometry.coordinates;
+        let time = feature.properties.time;
+        let value = feature.properties.value;
+
+        // Quarter-degree grid boundaries
+        let halfSize = 0.125; // 0.25° / 2
+        let bbox = [
+            [lon - halfSize, lat - halfSize],
+            [lon + halfSize, lat - halfSize],
+            [lon + halfSize, lat + halfSize],
+            [lon - halfSize, lat + halfSize],
+            [lon - halfSize, lat - halfSize] // Close the polygon
+        ];
+
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [bbox]
+            },
+            properties: { 
+                value:value,
+                time:time
+            }
+        };
+    });
+
+    return {
+        type: 'FeatureCollection',
+        features: gridFeatures
+    };
 }

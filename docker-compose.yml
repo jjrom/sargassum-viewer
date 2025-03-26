@@ -1,0 +1,19 @@
+volumes:
+  database_data:
+    driver: local
+  static_content:
+    driver: local
+networks:
+  default:
+    driver: bridge
+services:
+  sargassum-viewer:
+    image: jjrom/sargassum-viewer:latest
+    restart: always
+    build:
+      context: ./
+      dockerfile: ./edito.Dockerfile
+    ports:
+      - ${FRONTEND_PORT:-4444}:80
+    volumes:
+      - ./:/usr/share/nginx/html
