@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "apache-arrow": "^19.0.1",
     "maplibre-gl": "^5.2.0"
   }
 }

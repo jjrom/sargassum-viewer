@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>MapLibre + Deck.gl GeoArrowScatterplotLayer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <script src="https://unpkg.com/maplibre-gl@5.3.0/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/deck.gl@9.1.8/dist.min.js"></script>
+    <script src="https://unpkg.com/@deck.gl/geo-layers@9.1.8/dist.min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script type="module">
+
+        import { tableFromIPC } from "https://cdn.jsdelivr.net/npm/apache-arrow@19.0.1/+esm";
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://demotiles.maplibre.org/style.json',
+            center: [-122.45, 37.78],
+            zoom: 12,
+        });
+
+        map.on('load', async () => {
+
+            
+            const data = await fetch('http://localhost:3001/geoarrow/2022-03-01');
+            const buffer = await data.arrayBuffer();
+            const table = tableFromIPC(buffer);
+            console.log(table.toArray());
+            const layer = new deck.ScatterplotLayer({
+                id: 'geoarrow-scatter',
+                data: table,
+                //getPosition: d => d.coordinates,
+                getFillColor: [255, 140, 0],
+                getRadius: 50,
+                radiusMinPixels: 2,
+                pickable: true
+            });
+
+            // Create the overlay
+            const overlay = new deck.MapboxOverlay({
+                layers: [layer],
+            });
+            map.addControl(overlay);
+
+        });
+
+    </script>
+</body>
+
+</html>

@@ -8,6 +8,7 @@
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'; // Grey map
 //const MAP_STYLE = 'data/dark-matter-style.json';
 
+const ICON_COLOR = 'black';
 const EEZ_WMS_URL = 'https://geo.vliz.be/geoserver/MarineRegions/wms';
 
 //const API_FORECAST_ENDPOINT = 'http://localhost:4443/forecast/'; // Base URL for GeoJSON files
@@ -18,7 +19,7 @@ const PICK_DELAY = 1000; // Limit to 1 call per second
 const ANIMATION_DELAY = 1000; // 1 second delay
 const ANIMATION_DAY_OFFSET = 1;
 
-let sargassumThresholdValue = 80;
+let sargassumThresholdValue;
 
 // Map configuration
 const INITIAL_VIEW_STATE = {
@@ -29,10 +30,22 @@ const INITIAL_VIEW_STATE = {
     bearing: 0,
     maxBounds: [
         [-111.445312, -14.264383],
-        [27.773438, 61.270233]
+        [27.773438, 49]
     ],
     EEZ: 'French Exclusive Economic Zone (Guadeloupe)'
 };
+
+const COLOR_RAMP = {
+    minValue: 0.1,
+    minColor: [255, 220, 0, 1],  // Yellow for value = 0
+    maxValue: 0.7,
+    maxColor: [46, 204, 64, 1],   // Red for value = 1
+};
+
+const NORMALIZATION = {
+    minValue: 0,
+    maxValue: 0.0015
+}
 
 /** ========================== Computed variables ================================ **/
 const navigatorLanguage = () => (navigator.languages && navigator.languages.length) ? navigator.languages[0] : navigator.userLanguage || navigator.language || navigator.browserLanguage || 'en';
@@ -47,6 +60,8 @@ let firstTimeEEZ = true;
 let hoveredStateId = null;
 let clickedStateId = null;
 let showPreviousForecast = false;
+
+let eezs = {};
 
 const startDate = new Date(Date.parse((new Date()).toISOString().split('T')[0] + 'T12:00:00Z'));
 const endDate = new Date();
@@ -116,10 +131,10 @@ previousForecastCheckBox.addEventListener("change", function () {
         if (chartData && chartData.length > 0) {
             getPreviousForecast();
         }
-        showPreviousForecast = true;  
+        showPreviousForecast = true;
     } else {
         if (abortController.previousForecast) {
-            abortController.previousForecast.abort(); 
+            abortController.previousForecast.abort();
         }
         if (timeChart) {
             for (var i = 0, ii = timeChart.data.datasets.length; i < ii; i++) {
@@ -130,7 +145,7 @@ previousForecastCheckBox.addEventListener("change", function () {
                 }
             }
         }
-        
+
         showPreviousForecast = false;
     }
 });
@@ -155,6 +170,27 @@ const locationSelect = document.getElementById("locationSelect");
 locationSelect.addEventListener("change", function () {
     selectEEZ(this.value);
 });
+
+/** ========================== [UI] Legend    ================================ */
+const legendContainer = document.getElementById("legend");
+if (legendContainer) {
+    const legendStops = [];
+    const steps = 6;
+    for (let i = 0; i < steps; i++) {
+        const t = i / parseFloat((steps - 1));
+        const value = (COLOR_RAMP.minValue + t * (COLOR_RAMP.maxValue - COLOR_RAMP.minValue)) * NORMALIZATION.maxValue * 1000000;
+        const color = interpolateColor(COLOR_RAMP.minColor, COLOR_RAMP.maxColor, t);
+        legendStops.push({ value: Math.round(value), color });
+    }
+    legendStops.forEach(stop => {
+        const item = document.createElement('div');
+        item.innerHTML = `
+        <div style="width: 30px; height: 20px; background:${stop.color};"></div>
+        <span>${stop.value}</span>
+        `;
+        legendContainer.appendChild(item);
+    });
+}
 
 /** ========================== [UI] Full width chart  ================================ */
 const toggleLeftZoneBtn = document.getElementById("toggle-left-zone");
@@ -229,18 +265,26 @@ const popup = new maplibregl.Popup({
     map.on('mousemove', 'eez-layer', (e) => {
 
         const lngLat = e.lngLat;
-        popup.setLngLat(lngLat).setHTML(`<h3><b>${e.features[0].properties.GEONAME}</h3>`).addTo(map);
+        let html = `<h3><b>${e.features[0].properties.GEONAME}</h3>`;
+        if (eezs[e.features[0].properties.GEONAME]) {
+            html = html + '<div>Peak date : <span style="font-weight:bold;">' + toHumanDate(eezs[e.features[0].properties.GEONAME].maximumTime) + '</span><div>';
+            html = html + '<div>Peak volume : <span style="font-weight:bold;">' + parseInt(eezs[e.features[0].properties.GEONAME].maximumValue) + ' m<sup>2</sup> km<sup>-2</sup></span><div>';
+        }
+        else {
+            html = html + '<div>(Click to compute statistics)</div>';
+        }
+        popup.setLngLat(lngLat).setHTML(html).addTo(map);
 
         if (hoveredStateId) {
             map.setFeatureState(
-                {source: 'eez-source', id: hoveredStateId},
-                {hover: false}
+                { source: 'eez-source', id: hoveredStateId },
+                { hover: false }
             );
         }
         hoveredStateId = e.features[0].id;
         map.setFeatureState(
-            {source: 'eez-source', id: hoveredStateId},
-            {hover: true}
+            { source: 'eez-source', id: hoveredStateId },
+            { hover: true }
         );
     });
 
@@ -249,8 +293,8 @@ const popup = new maplibregl.Popup({
         currentFeatureCoordinates = undefined;
         if (hoveredStateId) {
             map.setFeatureState(
-                {source: 'eez-source', id: hoveredStateId},
-                {hover: false}
+                { source: 'eez-source', id: hoveredStateId },
+                { hover: false }
             );
         }
         hoveredStateId = null;
@@ -275,11 +319,11 @@ const popup = new maplibregl.Popup({
                         opt.classList.add("fixed");
                         opt.textContent = data.features[i].properties.GEONAME;
                         locationSelect.appendChild(opt);
-                    } 
+                    }
                     // Initial EEZ
                     locationSelect.value = INITIAL_VIEW_STATE.EEZ;
                     locationSelect.dispatchEvent(new Event("change"));
-                    
+
                 }
             );
             firstTimeEEZ = false;
@@ -296,7 +340,7 @@ const popup = new maplibregl.Popup({
             type: 'geojson',
             data: createGridFromPoints(sargassum.data)
         });
-        
+
         map.addLayer({
             type: 'fill',
             id: 'sargassum-layer',
@@ -306,9 +350,9 @@ const popup = new maplibregl.Popup({
                     'interpolate',
                     ['linear'],
                     ['get', 'value'],
-                    0, 'transparent',  // Yellow for value = 0
-                    0.1, 'rgba(255,255,0,1)',  // Yellow for value = 0
-                    0.7, 'rgba(255,0,0,1)'   // Red for value = 1
+                    0, 'transparent',  // Transparent for value = 0
+                    COLOR_RAMP.minValue, 'rgba(' + COLOR_RAMP.minColor.join(',') + ')',
+                    COLOR_RAMP.maxValue, 'rgba(' + COLOR_RAMP.maxColor.join(',') + ')'
                 ],
                 'fill-opacity': 1,
                 'fill-outline-color': 'transparent'
@@ -324,7 +368,7 @@ const popup = new maplibregl.Popup({
             type: 'fill',
             source: 'eez-source',
             paint: {
-                'fill-outline-color':[
+                'fill-outline-color': [
                     'case',
                     ['boolean', ['feature-state', 'click'], false],
                     'black',
@@ -355,15 +399,19 @@ const popup = new maplibregl.Popup({
 let chartData;
 
 // Handle threshold input changes
-document.getElementById('sargassumThresholdInput').addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-        event.preventDefault(); // Prevent form submission
-        sargassumThresholdValue = parseFloat(event.target.value);
-        updateChart();
-    }
-});
+const sargassumThresholdInput = document.getElementById('sargassumThresholdInput');
+if (sargassumThresholdInput) {
+    sargassumThresholdValue = sargassumThresholdInput.value;
+    sargassumThresholdInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent form submission
+            sargassumThresholdValue = parseFloat(event.target.value);
+            updateChart();
+        }
+    });
+}
 
-Chart.defaults.color = '#ffffff';
+Chart.defaults.color = '#000000';
 const ctx = document.getElementById('timeChart').getContext('2d');
 const timeChart = new Chart(ctx, {
     data: {
@@ -374,7 +422,7 @@ const timeChart = new Chart(ctx, {
                 label: 'Current forecast',
                 data: [],
                 tension: 0.4,
-                borderColor:'yellow',
+                borderColor: 'white',
                 segment: {
                     backgroundColor: ctx => getSegmentColor(ctx),
                     borderColor: ctx => getSegmentColor(ctx),
@@ -389,7 +437,7 @@ const timeChart = new Chart(ctx, {
     options: {
         responsive: true,
         animation: false,
-        maintainAspectRatio:false,
+        maintainAspectRatio: false,
         parsing: {
             xAxisKey: "time",
             yAxisKey: "value",
@@ -404,7 +452,7 @@ const timeChart = new Chart(ctx, {
                         type: 'line',
                         yMin: sargassumThresholdValue,
                         yMax: sargassumThresholdValue,
-                        borderColor: 'white',
+                        borderColor: 'black',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         label: {
@@ -453,12 +501,12 @@ function getSegmentColor(ctx) {
     if (!chartData) {
         return;
     }
-    
+
     if (chartData[index].time.toISOString().split('T')[0] === currentDate.toISOString().split('T')[0]) {
         return '#3D9970';
     }
-    
-    return chartData[index].value > sargassumThresholdValue ? '#FFDC00' : 'rgba(255,220,0,0.4)';
+
+    return chartData[index].value > sargassumThresholdValue ? '#FF4136' : 'rgba(255,255,255,0.4)';
 }
 
 
@@ -468,7 +516,7 @@ function updateChart() {
     // Update threshold line position
     timeChart.options.plugins.annotation.annotations[0].yMin = sargassumThresholdValue;
     timeChart.options.plugins.annotation.annotations[0].yMax = sargassumThresholdValue;
-    
+
     timeChart.update();
 
     computeStatistics();
@@ -480,7 +528,7 @@ function formatDateISO(date) {
 }
 
 // Normalize the values between 0 and 1
-function normalizeValue(value, minValue = 0.0001, maxValue = 0.2) {
+function normalizeValue(value, minValue, maxValue) {
     if (value <= minValue) {
         value = minValue;
     }
@@ -490,7 +538,7 @@ function normalizeValue(value, minValue = 0.0001, maxValue = 0.2) {
     return (value - minValue) / (maxValue - minValue);
 }
 
-function logNormalizeValue(value, minValue = 0.0001, maxValue = 0.2) {
+function logNormalizeValue(value, minValue, maxValue) {
     if (value <= minValue) {
         value = minValue;
     }
@@ -513,7 +561,7 @@ async function updateLayers(url) {
             sargassum.data = { type: 'FeatureCollection', features: [] };
         }
         for (const feature of sargassum.data.features) {
-            feature.properties.value = logNormalizeValue(feature.properties.value);
+            feature.properties.value = normalizeValue(feature.properties.value, NORMALIZATION.minValue, NORMALIZATION.maxValue);
         }
         isFetching = false; // Request finished
         fetchingSpinner.style.display = 'none';
@@ -552,15 +600,15 @@ async function fetchChartData(eezName) {
         let values = [];
 
         resetStatistics();
-        
+
         if (eezName) {
 
             try {
 
                 // Abort any previous request
-                abortController.currentForecast.abort(); 
+                abortController.currentForecast.abort();
                 abortController.currentForecast = new AbortController(); // Create new controller for new request
-                
+
                 // Hide spinner and show chart
                 if (loadingSpinner && chartContainer) {
                     loadingSpinner.style.display = 'block';
@@ -571,19 +619,19 @@ async function fetchChartData(eezName) {
                     signal: abortController.currentForecast.signal
                 });
                 const data = await response.json();
- 
+
                 // Convert API data into chart-friendly format
                 if (currentEEZ) {
                     values = data.values.map((entry) => {
                         return {
                             time: new Date(entry.date),
-                            value:entry.m2PerKm2
+                            value: entry.m2PerKm2
                         };
                     }); // Convert to Date objects
                 }
 
                 chartData = values;
-                
+
                 // Get the first date to retrieve previous forecast
                 if (showPreviousForecast) {
                     getPreviousForecast();
@@ -604,7 +652,7 @@ async function fetchChartData(eezName) {
             loadingSpinner.style.display = 'none';
             chartContainer.style.display = 'block';
         }
-        
+
         if (timeChart) {
             setDatasetData('currentForecast', chartData);
         }
@@ -630,26 +678,26 @@ function selectEEZ(geoname) {
                 data.features.forEach(feature => {
 
                     if (feature.properties.GEONAME === geoname) {
-    
+
                         currentEEZ = feature;
                         eezArea.innerHTML = "Area:&nbsp;" + feature.properties.AREA_KM2 + " km2";
                         const bbox = getBoundingBox(feature.geometry.coordinates);
                         map.fitBounds(bbox, {
                             padding: 200
                         });
-                        
+
                         clickedStateId = feature.id;
                         map.setFeatureState(
-                            {source: 'eez-source', id: clickedStateId},
-                            {click: true}
+                            { source: 'eez-source', id: clickedStateId },
+                            { click: true }
                         );
-    
+
                         return fetchChartData(geoname);
                     }
                     else {
                         map.setFeatureState(
-                            {source: 'eez-source', id: feature.id},
-                            {click: false}
+                            { source: 'eez-source', id: feature.id },
+                            { click: false }
                         );
                     }
                 });
@@ -660,9 +708,10 @@ function selectEEZ(geoname) {
 
 function computeStatistics() {
 
-    if ( !chartData || chartData.length === 0) {
-        maximumValue.innerHTML = '---';
-        coveringPeriod.innerHTML = '---';
+    maximumValue.innerHTML = '---';
+    coveringPeriod.innerHTML = '---';
+
+    if (!chartData || chartData.length === 0) {
         return;
     }
 
@@ -698,11 +747,16 @@ function computeStatistics() {
             start: [currentIntersection.start[0], currentIntersection.start[1]]
         });
     }
-    
+
     // Maximum value and soccer field equivalence
-    maximumValue.innerHTML = '<span class="hilite">' + toHumanDate(maximum[0]) + '</span>&nbsp;(' + parseInt(maximum[1]) + ' m2/km2)';
+    maximumValue.innerHTML = '<span class="hilite">' + parseInt(maximum[1]) + ' m<sup>2</sup> km<sup>-2</sup></span> on <span class="hilite">' + toHumanDate(maximum[0]) + '</span>';
 
     visualMeasure.innerHTML = getVisualMeasure(maximum[1], currentEEZ.properties.AREA_KM2);
+
+    eezs[currentEEZ.properties.GEONAME] = {
+        maximumTime: maximum[0],
+        maximumValue: maximum[1]
+    };
 
     let intersectionsValue = [];
     for (var i = 0, ii = intersections.length; i < ii; i++) {
@@ -746,9 +800,19 @@ function toHumanDate(date) {
  * @param {float} surfaceInKm2 
  */
 function getVisualMeasure(m2PerKm2, surfaceInKm2) {
-    let numberOfFields = parseInt((m2PerKm2 * surfaceInKm2) / 7000);
+    let totalKm2 = m2PerKm2 * surfaceInKm2;
+    let numberOfFields = parseInt(totalKm2 / 7000);
     let weight = parseInt(3.34 * m2PerKm2 * surfaceInKm2 / 1000);
-    return numberOfFields + '&nbsp;x&nbsp;<img src="img/soccer_white.png" style="width:75px;"/><span style="padding-left:30px"></span><img src="img/weight_white.png" style="width:50px;"/>&nbsp;' + weight + '&nbsp;T';
+    let html = [
+        '<div style="padding-bottom:10px;">The <span class="hilite">total area</span> covered by sargassum in the EEZ is <span class="hilite">' + parseInt(totalKm2 / 1000000) + '&nbsp;km<sup>2</sup></span></div>',
+        '<div>Which corresponds to <span class="hilite">' + numberOfFields + '</span> soccer fields</div>',
+        '<div><img src="img/soccer_' + ICON_COLOR + '.png" style="width:75px;"/></div>',
+        '<div style="padding-top:50px;">The indicative <span class="hilite">mass</span> in the EEZ is <span class="hilite">' + weight + '&nbsp;Tons</span></div>',
+        '<div style="font-size:0.8em;padding-bottom:10px;">(according to a mean density of 3.34 kg/m² (<a target="_blank" href="https://doi.org/10.1029/2018GL078858">Wang et al., 2018)</a></div>',
+        '<div><img src="img/body_weight_' + ICON_COLOR + '.png" style="width:50px;"/></div>',
+    ];
+    return html.join('');
+    //return numberOfFields + '&nbsp;x&nbsp;<img src="img/soccer_' + ICON_COLOR + '.png" style="width:75px;"/><span style="padding-left:30px"></span><img src="img/body_weight_' + ICON_COLOR + '.png" style="width:50px;"/>&nbsp;' + weight + '&nbsp;T';
 }
 
 // Function to calculate bounding box manually
@@ -757,7 +821,7 @@ function getBoundingBox(coordinates) {
     let maxLng = -Infinity, maxLat = -Infinity;
     let lng, lat;
     coordinates[0].forEach(coord => {
-        if ( Array.isArray(coord[0]) ) {
+        if (Array.isArray(coord[0])) {
             coord.forEach(coord => {
                 [lng, lat] = coord;
                 if (lng < minLng) minLng = lng;
@@ -774,44 +838,44 @@ function getBoundingBox(coordinates) {
             if (lat > maxLat) maxLat = lat;
         }
     });
-    
+
     return [[minLng, minLat], [maxLng, maxLat]];
 }
 
 async function getPreviousForecast() {
-    
+
     let values = [];
 
-    if ( !chartData || !currentEEZ) {
+    if (!chartData || !currentEEZ) {
         return;
     }
 
     let url = API_FORECAST_ENDPOINT + chartData[0].time.toISOString().split('T')[0] + '/volume/' + currentEEZ.properties.GEONAME
-    
+
     try {
 
         // Abort any previous request
         if (abortController.previousForecast) {
-            abortController.previousForecast.abort(); 
+            abortController.previousForecast.abort();
         }
         abortController.previousForecast = new AbortController(); // Create new controller for new request
-        
+
         const response = await fetch(url, {
             signal: abortController.previousForecast.signal
         });
         const data = await response.json();
-        
+
         const firstReferenceDate = chartData[0].time;
         const lastReferenceDate = chartData[chartData.length - 1].time;
-        
+
         for (var i = 0, ii = data.values.length; i < ii; i++) {
             var date = new Date(data.values[i].date);
             if (date.getTime() < firstReferenceDate.getTime() || date.getTime() > lastReferenceDate.getTime()) {
                 continue;
             }
             values.push({
-                time:new Date(data.values[i].date),
-                value:data.values[i].m2PerKm2
+                time: new Date(data.values[i].date),
+                value: data.values[i].m2PerKm2
             });
         }
 
@@ -830,14 +894,14 @@ async function getPreviousForecast() {
                     label: 'Previous forecast',
                     data: [],
                     tension: 0.4,
-                    borderColor: 'rgba(255,255,255,0.4)',
+                    borderColor: 'rgba(0,0,0,1)',
                     pointBackgroundColor: 'transparent',
                     pointBorderColor: 'transparent',
                     pointRadius: 5,
                     fill: false
                 });
             }
-            
+
             setDatasetData('previousForecast', values);
         }
 
@@ -889,9 +953,9 @@ function createGridFromPoints(pointGeoJson) {
                 type: 'Polygon',
                 coordinates: [bbox]
             },
-            properties: { 
-                value:value,
-                time:time
+            properties: {
+                value: value,
+                time: time
             }
         };
     });
@@ -900,4 +964,18 @@ function createGridFromPoints(pointGeoJson) {
         type: 'FeatureCollection',
         features: gridFeatures
     };
+}
+
+function rgbToHex(rgb) {
+    const toHex = c => c.toString(16).padStart(2, '0');
+    return `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
+}
+
+function interpolateColor(c1, c2, t) {
+    const lerp = (a, b) => Math.round(a + (b - a) * t);
+    return rgbToHex([
+        lerp(c1[0], c2[0]),
+        lerp(c1[1], c2[1]),
+        lerp(c1[2], c2[2])
+    ]);
 }

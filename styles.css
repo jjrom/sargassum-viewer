@@ -10,8 +10,8 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: #111111;
-    color: white;
+    background:rgba(42, 123, 155, 1);
+    color: black;
 }
 
 body {
@@ -102,18 +102,19 @@ h1 {
     width: 100%;
     height:70px;
     padding: 10px 20px;
-    background-color:olive;
 }
 
 /* Lower Section (Split Left & Right) */
 .lower-section {
     display: flex;
+    flex-direction: column;
     width: 100%;
+    text-align: center;
 }
 
 /* Left Zone */
 .left-zone {
-    width: 40vw;
+    width: 100vw;
     padding: 20px;
 }
 
@@ -129,7 +130,7 @@ h1 {
 
 .card {
     font-size: 1.2em;
-    padding-left:20px;
+
 }
 
 .card-label {
@@ -140,14 +141,12 @@ h1 {
     padding-bottom: 15px;
 }
 
-.card-label .hilite,
-.card-value .hilite {
-    color:#FFDC00;
-    font-weight: bold;
+.hilite {
+    color:white;
 }
 /* Right Zone */
 .right-zone {
-    width: 60vw;
+    width: 100vw;
 }
 
 /* Form Styling */
@@ -213,6 +212,19 @@ select {
     accent-color: #3D9970;
 }
 
+.bottom-left {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    padding: 10px;
+    z-index: 10;
+    text-align: center;
+}
+.legend {
+    display: flex;
+    align-items: center;
+}
+
 .bigger {
     font-size: 2em;
 }
@@ -271,9 +283,7 @@ select {
 
 .visual-measure {
     padding-left:30px;
-    display: flex;
     align-items: center;
-    flex-direction: row;
     /*justify-content: center;*/
 }
 
@@ -281,7 +291,7 @@ select {
     border: 0;
     outline: 0;
     width:50px;
-    color:#FFDC00;
+    color:white;
     font-weight: bold;
     background: transparent;
     font-size: 0.9em;
@@ -298,14 +308,4 @@ input::-webkit-inner-spin-button {
 
 input[type=number] {
     -moz-appearance:textfield; /* Firefox */
-}
-
-/* 📱 Responsive: Stack Right Zone Below Left on Small Screens */
-@media (max-width: 1024px) {
-    .lower-section {
-        flex-direction: column;
-    }
-    .left-zone, .right-zone {
-        width:100vw; /* Take full width */
-    }
 }

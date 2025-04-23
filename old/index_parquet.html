@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parquet Viewer</title>
+</head>
+<body>
+    <h2>Upload a Parquet File</h2>
+    <input type="file" id="fileInput">
+    <pre id="output"></pre>
+
+    <script type="module">
+        import { tableFromIPC } from "https://cdn.jsdelivr.net/npm/apache-arrow@19.0.1/+esm";
+        import init, { readParquet } from "https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.1/esm/parquet_wasm.js";
+
+        async function loadParquet(file) {
+            await init(); // Initialize the WASM module
+
+            const arrayBuffer = await file.arrayBuffer();
+            const parquetUint8Array = new Uint8Array(arrayBuffer);
+            const arrowWasmTable = await readParquet(parquetUint8Array);
+            const arrowTable = tableFromIPC(arrowWasmTable.intoIPCStream());
+
+            document.getElementById("output").textContent = arrowTable.toArray()[0];
+        }
+
+        document.getElementById("fileInput").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                loadParquet(file);
+            }
+        });
+    </script>
+</body>
+</html>

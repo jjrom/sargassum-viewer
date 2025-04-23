@@ -62,6 +62,11 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="bottom-left">
+                        <div>Sargassum density (m<sup>2</sup> km<sup>-2</sup>)</div>
+                        <div class="legend" id="legend"></div>
+                    </div>
                 </div>
 
             </div>
@@ -72,20 +77,17 @@
                     <select id="locationSelect">
                         <option value="">Loading...</option>
                     </select>
-                    <div style="padding-left:20px;" id="eez-area"></div>
+                    <div style="padding-left:20px;color:white;" id="eez-area"></div>
                 </div>
                 
                 <div class="lower-section">
                     <div class="left-zone" id="left-zone">
                         <div class="card">
-                            <span class="card-label">Sargassum density peak on </span><span class="card-value" id="maximum-value"></span>
+                            <h2 class="card-label">The estimated sargassum <span class="hilite">density peak</span> is </span><span class="card-value" id="maximum-value"></h2>
                             <div style="padding-bottom:10px"></div>
                             <div class="visual-measure" id="visual-measure"></div>
                             <div style="padding-bottom:30px"></div>
-                            <div class="card-label">Periods with density greater than<input type="number" id="sargassumThresholdInput" value="80"> m2/km2</div>
-                            <div class="card-value" style="padding-left:10px" id="covering-period"></div>
                         </div>
-                        <!--<input type="number" id="sargassumThresholdInput" value="200" step="1">-->
                     </div>
                     
                     <div class="right-zone" id="right-zone" style="position:relative">
@@ -96,6 +98,10 @@
                                 <label>
                                     <input type="checkbox" id="previous-forecast-checkbox"> Show/Hide previous forecast
                                 </label>
+                                <div class="card" style="padding-top:20px;">
+                                    <div class="card-label">Periods with density greater than<input type="number" id="sargassumThresholdInput" value="300"> m<sup>2</sup> km<sup>-2</sup></div>
+                                    <div class="card-value" style="padding-left:10px" id="covering-period"></div>
+                                </div>        
                                 <div style="text-align:center;padding:10px 0px;"><button id="toggle-left-zone">Hide statistics</button></div>
                             </div>
                         </div>
