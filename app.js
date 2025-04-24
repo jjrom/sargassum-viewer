@@ -859,7 +859,9 @@ async function getPreviousForecast() {
         return;
     }
 
-    let url = API_FORECAST_ENDPOINT + chartData[0].time.toISOString().split('T')[0] + '/volume/' + currentEEZ.properties.GEONAME
+    var d = new Date(chartData[0].time);
+    d.setMonth(d.getMonth() - 1); // Subtract one month
+    let url = API_FORECAST_ENDPOINT + d.toISOString().split('T')[0] + '/volume/' + currentEEZ.properties.GEONAME
 
     try {
 
