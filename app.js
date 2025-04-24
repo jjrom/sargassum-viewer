@@ -37,9 +37,11 @@ const INITIAL_VIEW_STATE = {
 
 const COLOR_RAMP = {
     minValue: 0.1,
-    minColor: [255, 220, 0, 1],  // Yellow for value = 0
+    //minColor: [255, 220, 0, 1],
+    minColor: [97,64,81,1],
     maxValue: 0.7,
-    maxColor: [46, 204, 64, 1],   // Red for value = 1
+    maxColor:[255,247,0, 1]
+    //maxColor: [46, 204, 64, 1],
 };
 
 const NORMALIZATION = {
@@ -85,7 +87,7 @@ const endLabel = document.getElementById("end-label");
 const dateLabel = document.getElementById('date-label');
 const playPauseBtn = document.getElementById('play-pause-btn');
 const eezContainer = document.getElementById('eez');
-const maximumValue = document.getElementById('maximum-value');
+const densityPeakContainer = document.getElementById('density-peak');
 const chartContainer = document.getElementById('chart-container');
 const loadingSpinner = document.getElementById('loading-spinner');
 const fetchingSpinner = document.getElementById('fetching-spinner');
@@ -253,7 +255,7 @@ const popup = new maplibregl.Popup({
         bearing: INITIAL_VIEW_STATE.bearing,
         cooperativeGestures: true,
         maxBounds: INITIAL_VIEW_STATE.maxBounds, // Sets bounds as max
-        maxZoom: 4,
+        maxZoom: 5,
     });
 
     // Click on EEZ centroid trigger change on Select location
@@ -717,7 +719,7 @@ function selectEEZ(geoname) {
 
 function computeStatistics() {
 
-    maximumValue.innerHTML = '---';
+    densityPeakContainer.innerHTML = '';
     coveringPeriod.innerHTML = '---';
 
     if (!chartData || chartData.length === 0) {
@@ -758,7 +760,7 @@ function computeStatistics() {
     }
 
     // Maximum value and soccer field equivalence
-    maximumValue.innerHTML = '<span class="hilite">' + parseInt(maximum[1]) + ' m<sup>2</sup> km<sup>-2</sup></span> on <span class="hilite">' + toHumanDate(maximum[0]) + '</span>';
+    densityPeakContainer.innerHTML = 'The estimated sargassum <span class="hilite">density peak</span> is </span><span class="card-value><span class="hilite">' + parseInt(maximum[1]) + ' m<sup>2</sup> km<sup>-2</sup></span> on <span class="hilite">' + toHumanDate(maximum[0]) + '</span></span>';
 
     visualMeasure.innerHTML = getVisualMeasure(maximum[1], currentEEZ.properties.AREA_KM2);
 
@@ -787,7 +789,7 @@ function capitalizeFirstLetter(val) {
 }
 
 function resetStatistics() {
-    maximumValue.innerHTML = '---';
+    densityPeakContainer.innerHTML = '';
     coveringPeriod.innerHTML = '---';
     visualMeasure.innerHTML = '';
     if (timeChart) {
