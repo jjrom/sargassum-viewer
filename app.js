@@ -252,7 +252,8 @@ const popup = new maplibregl.Popup({
         pitch: INITIAL_VIEW_STATE.pitch,
         bearing: INITIAL_VIEW_STATE.bearing,
         cooperativeGestures: true,
-        maxBounds: INITIAL_VIEW_STATE.maxBounds // Sets bounds as max
+        maxBounds: INITIAL_VIEW_STATE.maxBounds, // Sets bounds as max
+        maxZoom: 4,
     });
 
     // Click on EEZ centroid trigger change on Select location
@@ -422,10 +423,10 @@ const timeChart = new Chart(ctx, {
                 label: 'Current forecast',
                 data: [],
                 tension: 0.4,
-                borderColor: 'white',
+                borderColor: 'olive',
                 segment: {
-                    backgroundColor: ctx => getSegmentColor(ctx),
-                    borderColor: ctx => getSegmentColor(ctx),
+                    backgroundColor: ctx => getSegmentColor(ctx)/*,
+                    borderColor: ctx => getSegmentColor(ctx),*/
                 },
                 pointBackgroundColor: 'transparent',
                 pointBorderColor: 'transparent',
@@ -444,7 +445,10 @@ const timeChart = new Chart(ctx, {
         },
         plugins: {
             legend: {
-                display: true
+                display: true,
+                labels: {
+                    color: 'black'
+                }
             },
             annotation: {
                 annotations: [
@@ -506,7 +510,7 @@ function getSegmentColor(ctx) {
         return '#3D9970';
     }
 
-    return chartData[index].value > sargassumThresholdValue ? '#FF4136' : 'rgba(255,255,255,0.4)';
+    return chartData[index].value > sargassumThresholdValue ? 'rgba(0,0,0,0.2)' : 'transparent';
 }
 
 
@@ -631,6 +635,11 @@ async function fetchChartData(eezName) {
                 }
 
                 chartData = values;
+
+                const bottomZone = document.querySelector(".lower-section");
+                if (bottomZone) {
+                    bottomZone.scrollIntoView({ behavior: "smooth" });
+                }
 
                 // Get the first date to retrieve previous forecast
                 if (showPreviousForecast) {
@@ -894,7 +903,7 @@ async function getPreviousForecast() {
                     label: 'Previous forecast',
                     data: [],
                     tension: 0.4,
-                    borderColor: 'rgba(0,0,0,1)',
+                    borderColor: 'black',
                     pointBackgroundColor: 'transparent',
                     pointBorderColor: 'transparent',
                     pointRadius: 5,

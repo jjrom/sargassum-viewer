@@ -1,4 +1,4 @@
-FROM nginx:1.27.4-perl
+FROM nginx:1.26.3-alpine3.20-perl
 
 COPY ./*.html /usr/share/nginx/html/
 COPY ./*.css /usr/share/nginx/html/

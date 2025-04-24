@@ -296,6 +296,7 @@ input::-webkit-inner-spin-button {
 }
 
 input[type=number] {
+    appearance:textfield; /* Firefox */
     -moz-appearance:textfield; /* Firefox */
 }
 
