@@ -32,18 +32,17 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <div style="display:flex">
-                    <h1>Sargassum Forecast</h1>
-                    <img style="padding-left:10px" src="img/sargassum.png" />
-                </div>
-                <span>North Atlantic Sargassum Seasonal Distribution</span>
+                <h3 style="padding-bottom:5px;">SARGASSUM FORECAST - North Atlantic seasonal distribution</h3>
+                <select id="locationSelect">
+                    <option value="">Loading...</option>
+                </select>
             </div>
             <div class="header-right">
                 <img src="img/EDITO_logo_EU_Flag_Negative.png">
                 <img src="img/moi_white.png">
             </div>
         </header>
-
+        
         <!-- Main Content -->
         <div class="main-content">
 
@@ -72,17 +71,10 @@
             </div>
 
             <div class="bottom-zone">
-
-                <div class="upper-zone">
-                    <select id="locationSelect">
-                        <option value="">Loading...</option>
-                    </select>
-                    <div style="padding-left:20px;color:white;" id="eez-area"></div>
-                </div>
-                
                 <div class="lower-section">
                     <div class="left-zone" id="left-zone">
                         <div class="card">
+                            <h1 id="eez" style="padding-bottom:10px;font-weight: bold;"></h1>
                             <h2 class="card-label">The estimated sargassum <span class="hilite">density peak</span> is </span><span class="card-value" id="maximum-value"></h2>
                             <div style="padding-bottom:10px"></div>
                             <div class="visual-measure" id="visual-measure"></div>

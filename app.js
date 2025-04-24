@@ -6,7 +6,7 @@
 /** ========================== Configuration ================================ **/
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'; // Grey map
-//const MAP_STYLE = 'data/dark-matter-style.json';
+//const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 const ICON_COLOR = 'black';
 const EEZ_WMS_URL = 'https://geo.vliz.be/geoserver/MarineRegions/wms';
@@ -84,7 +84,7 @@ const startLabel = document.getElementById("start-label");
 const endLabel = document.getElementById("end-label");
 const dateLabel = document.getElementById('date-label');
 const playPauseBtn = document.getElementById('play-pause-btn');
-const eezArea = document.getElementById('eez-area');
+const eezContainer = document.getElementById('eez');
 const maximumValue = document.getElementById('maximum-value');
 const chartContainer = document.getElementById('chart-container');
 const loadingSpinner = document.getElementById('loading-spinner');
@@ -677,7 +677,7 @@ function selectEEZ(geoname) {
 
     if (geoname === '---') {
         currentEEZ = null;
-        eezArea.innerHTML = "Area:&nbsp; ---";
+        eezContainer.innerHTML = "---";
         return fetchChartData(null);
     }
 
@@ -689,7 +689,7 @@ function selectEEZ(geoname) {
                     if (feature.properties.GEONAME === geoname) {
 
                         currentEEZ = feature;
-                        eezArea.innerHTML = "Area:&nbsp;" + feature.properties.AREA_KM2 + " km2";
+                        eezContainer.innerHTML = feature.properties.GEONAME + "&nbsp;(" + feature.properties.AREA_KM2 + "&nbsp;km<sup>2</sup>)";
                         const bbox = getBoundingBox(feature.geometry.coordinates);
                         map.fitBounds(bbox, {
                             padding: 200
