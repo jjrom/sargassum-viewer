@@ -743,7 +743,7 @@ function computeStatistics() {
     }
 
     // Maximum value and soccer field equivalence
-    densityPeakContainer.innerHTML = 'The estimated sargassum <span class="hilite">density peak</span> is </span><span class="card-value><span class="hilite">' + parseInt(maximum[1]) + ' m<sup>2</sup> km<sup>-2</sup></span> on <span class="hilite">' + toHumanDate(maximum[0]) + '</span></span>';
+    densityPeakContainer.innerHTML = 'The estimated sargassum <span class="hilite">density peak</span> is </span><span class="card-value><span class="hilite">' + parseInt(maximum[1]) + ' m<sup>2</sup> km<sup>-2</sup></span> on <span class="hilite pointer" onclick="changeDate(\'' + maximum[0].toISOString() + '\')">' + toHumanDate(maximum[0]) + '</span></span>';
 
     visualMeasure.innerHTML = getVisualMeasure(maximum[1], currentEEZ.properties.AREA_KM2);
 
@@ -1004,5 +1004,13 @@ function updateSelectedEEZLayer(feature) {
             }
         });
        
+    }
+}
+
+function changeDate(dateStr) {
+    let d = new Date(dateStr);
+    let offsetInDays = Math.floor((d.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (offsetInDays > 0 ) {
+        updateDate(offsetInDays, 10);
     }
 }

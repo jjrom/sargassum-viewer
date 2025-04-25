@@ -157,6 +157,10 @@ h1 {
     margin-top: 10px;
 }
 
+.pointer {
+    cursor: pointer;
+}
+
 label {
     font-size: 16px;
     margin-bottom: 5px;
