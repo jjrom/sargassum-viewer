@@ -60,7 +60,6 @@ let abortController = {
 
 let firstTimeEEZ = true;
 let hoveredStateId = null;
-let clickedStateId = null;
 let showPreviousForecast = false;
 
 let eezs = {};
@@ -371,16 +370,9 @@ const popup = new maplibregl.Popup({
             type: 'fill',
             source: 'eez-source',
             paint: {
-                'fill-outline-color': [
-                    'case',
-                    ['boolean', ['feature-state', 'click'], false],
-                    'black',
-                    'black'
-                ],
+                'fill-outline-color':'black',
                 'fill-color': [
                     'case',
-                    ['boolean', ['feature-state', 'click'], false],
-                    'rgba(0,0,0,0.1)',
                     ['boolean', ['feature-state', 'hover'], false],
                     'rgba(0,0,0,0.1)',
                     'rgba(0,0,0,0)'
@@ -697,19 +689,10 @@ function selectEEZ(geoname) {
                             padding: 200
                         });
 
-                        clickedStateId = feature.id;
-                        map.setFeatureState(
-                            { source: 'eez-source', id: clickedStateId },
-                            { click: true }
-                        );
-
+                        // Replace selected EEZ layer
+                        updateSelectedEEZLayer(feature);
+                        
                         return fetchChartData(geoname);
-                    }
-                    else {
-                        map.setFeatureState(
-                            { source: 'eez-source', id: feature.id },
-                            { click: false }
-                        );
                     }
                 });
             }
@@ -991,4 +974,35 @@ function interpolateColor(c1, c2, t) {
         lerp(c1[1], c2[1]),
         lerp(c1[2], c2[2])
     ]);
+}
+
+function updateSelectedEEZLayer(feature) {
+
+    if (map) {
+
+        if (map.getLayer('eez-selected-layer')) {
+            map.removeLayer('eez-selected-layer');
+        }
+        if (map.getSource('eez-selected-source')) {
+            map.removeSource('eez-selected-source');
+        }
+        
+        map.addSource('eez-selected-source', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: [feature]
+            }
+        });
+        map.addLayer({
+            id: 'eez-selected-layer',
+            type: 'line',
+            source: 'eez-selected-source',
+            paint: {
+                'line-color': '#3D9970',
+                'line-width': 3
+            }
+        });
+       
+    }
 }
